@@ -89,6 +89,24 @@ if (!checkDeps()) {
 }
 
 function startServices() {
+  // Ensure trained model is available before starting inference
+  console.log(' Checking trained model artifact...');
+  const modelSetup = spawn('python', ['download_model.py'], {
+    cwd: path.join(__dirname, 'inference'),
+    stdio: 'inherit',
+    env: process.env
+  });
+
+  modelSetup.on('close', (code) => {
+    if (code !== 0) {
+      console.error(' Trained model setup failed. Aborting startup.');
+      process.exit(1);
+    }
+    startRuntimeServices();
+  });
+}
+
+function startRuntimeServices() {
   // Check if MongoDB is already running
   console.log(' Checking MongoDB...');
   const mongoCheck = spawn('netstat', ['-ano'], {

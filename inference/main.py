@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Global model variables
 mesonet_model = None
 MODEL_TYPE = "mesonet" # "mesonet" or "efficientnet"
+MODEL_LOADED_FROM_TRAINED_WEIGHTS = False
 from tensorflow.keras.applications.efficientnet import preprocess_input
 
 @asynccontextmanager
@@ -96,18 +97,42 @@ def load_mesonet_model():
     2. MesoNet Optimized (Previous best)
     3. Placeholder (Fallback)
     """
-    global mesonet_model, MODEL_TYPE
+    global mesonet_model, MODEL_TYPE, MODEL_LOADED_FROM_TRAINED_WEIGHTS
     
     base_dir = os.path.dirname(__file__)
     
-    # List of models to try in order of preference
-    # (filename, model_type)
+    # If MODEL_PATH is set, always try it first and fail fast if missing.
+    configured_model_path = os.getenv("MODEL_PATH")
+    if configured_model_path:
+        model_path = configured_model_path if os.path.isabs(configured_model_path) else os.path.abspath(os.path.join(base_dir, configured_model_path))
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(
+                f"Configured MODEL_PATH does not exist: {model_path}. "
+                "Run inference/download_model.py or set MODEL_URL/MODEL_SHA256."
+            )
+        try:
+            logger.info(f"Loading model from MODEL_PATH: {model_path}")
+            mesonet_model = tf.keras.models.load_model(model_path)
+            lower_name = os.path.basename(model_path).lower()
+            MODEL_TYPE = "efficientnet" if "efficientnet" in lower_name else "mesonet"
+            MODEL_LOADED_FROM_TRAINED_WEIGHTS = True
+            return True
+        except Exception as e:
+            raise RuntimeError(f"Failed to load model from MODEL_PATH: {e}") from e
+
+    allow_mesonet_fallback = os.getenv("ALLOW_MESONET_FALLBACK", "false").lower() == "true"
+
+    # List of models to try in order of preference.
+    # By default, only EfficientNet artifacts are allowed.
     candidates = [
         ("efficientnet_deepfake_final.h5", "efficientnet"),
         ("efficientnet_deepfake.h5", "efficientnet"),
-        ("enhanced_mesonet_optimized.h5", "mesonet"),
-        ("enhanced_mesonet.h5", "mesonet")
     ]
+    if allow_mesonet_fallback:
+        candidates.extend([
+            ("enhanced_mesonet_optimized.h5", "mesonet"),
+            ("enhanced_mesonet.h5", "mesonet")
+        ])
 
     for filename, m_type in candidates:
         model_path = os.path.join(base_dir, filename)
@@ -116,6 +141,7 @@ def load_mesonet_model():
                 logger.info(f"Loading model: {filename} ({m_type})")
                 mesonet_model = tf.keras.models.load_model(model_path)
                 MODEL_TYPE = m_type
+                MODEL_LOADED_FROM_TRAINED_WEIGHTS = True
                 logger.info(f"Successfully loaded {filename}")
                 return True
             except Exception as e:
@@ -123,9 +149,22 @@ def load_mesonet_model():
                 continue
                 
     # If we get here, no model loaded
-    logger.warning("No trained models found. Using placeholder.")
+    allow_placeholder = os.getenv("ALLOW_PLACEHOLDER_MODEL", "false").lower() == "true"
+    if not allow_placeholder:
+        fallback_note = (
+            " MesoNet fallback is disabled by default. Set ALLOW_MESONET_FALLBACK=true "
+            "only if you intentionally want to use the MesoNet backup model."
+        )
+        raise RuntimeError(
+            "No trained model found. Configure MODEL_PATH or MODEL_URL/MODEL_SHA256 and run "
+            "inference/download_model.py. To override only for local debugging, set "
+            "ALLOW_PLACEHOLDER_MODEL=true." + fallback_note
+        )
+
+    logger.warning("No trained models found. Using placeholder because ALLOW_PLACEHOLDER_MODEL=true.")
     mesonet_model = _build_placeholder_mesonet()
     MODEL_TYPE = "mesonet" # Placeholder simulates mesonet structure
+    MODEL_LOADED_FROM_TRAINED_WEIGHTS = False
     return False
 
 def report_progress(upload_id, progress, current_frame=None, total_frames=None):

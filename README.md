@@ -34,6 +34,7 @@ node run.js
 
 This will:
 - Automatically install all dependencies if not present
+- Ensure the trained model artifact exists (downloads it if missing)
 - Start MongoDB (if not already running)
 - Start the backend service (port 5000)
 - Start the inference service (port 8000)
@@ -67,7 +68,33 @@ This will:
    MONGODB_URI=mongodb://localhost:27017/deepfake
    PORT=5000
    INFERENCE_URL=http://localhost:8000
+   MODEL_PATH=./efficientnet_deepfake_final.h5
+   MODEL_URL=<github-release-direct-download-url>
+   MODEL_SHA256=<sha256-of-model-file>
+   ALLOW_MESONET_FALLBACK=false
+   ALLOW_PLACEHOLDER_MODEL=false
    ```
+
+### Trained Model Portability (New Laptop)
+
+To run this project on another laptop with the exact same trained behavior:
+
+1. Upload your trained model (`inference/efficientnet_deepfake_final.h5`) as a GitHub Release asset.
+   - Repository: `Sourav-Singhhh/Deepfakedetection`
+   - Tag: `model-v1`
+   - Asset name: `efficientnet_deepfake_final.h5`
+2. Put the release asset URL in `MODEL_URL` in your root `.env`.
+3. Compute and set SHA256:
+   ```powershell
+   Get-FileHash ".\inference\efficientnet_deepfake_final.h5" -Algorithm SHA256
+   ```
+4. Keep `ALLOW_PLACEHOLDER_MODEL=false` (recommended).
+
+At startup, `run.js` runs `inference/download_model.py` automatically.  
+If the model is missing or hash verification fails, startup is stopped to prevent accidental untrained/fallback inference.
+
+By default, inference only tries EfficientNet model files.  
+MesoNet fallback is disabled unless you explicitly set `ALLOW_MESONET_FALLBACK=true`.
 
 #### Start Services
 Open three terminals:
