@@ -66,3 +66,7 @@ inference/data/
 **/*.keras
 **/*.ckpt
 
+# Track the primary pre-trained EfficientNet-B0 model
+!inference/efficientnet_deepfake_final.h5
+
+

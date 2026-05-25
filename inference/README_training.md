@@ -1,12 +1,18 @@
-# Training Instructions for DeepFake Detection MesoNet Model
+# Training Instructions for DeepFake Detection Models
 
-This document explains how to train the MesoNet deepfake detection model using the provided training script `train.py`.
+This document explains how to train the deepfake detection models on new datasets using the provided training scripts.
 
-## Dataset Preparation
+We provide two distinct training pipelines depending on your accuracy and performance requirements:
+1. **EfficientNet-B0 Model (`train_pro.py`)** — **[RECOMMENDED]** High-capacity transfer learning model with state-of-the-art accuracy.
+2. **Enhanced MesoNet Model (`train_improved.py`)** — Lightweight, custom-built convolutional network designed for faster execution.
+
+---
+
+## 1. Dataset Preparation
 
 Prepare your dataset directory with the following structure:
 
-```
+```text
 dataset/
 ├── real/
 │   ├── img1.jpg
@@ -18,43 +24,66 @@ dataset/
     └── ...
 ```
 
-- Place real (authentic) images in the `real/` folder.
-- Place fake (deepfake) images in the `fake/` folder.
+- **Important**: Your folders must be named exactly `real/` (authentic images/faces) and `fake/` (deepfake images/faces). The training pipelines will verify and assert this exact mapping (`fake` → 0, `real` → 1).
+- **Face Extraction**: It is highly recommended to extract and crop faces from your videos/images first. You can use the `preprocess_faces.py` or `extract_frames_from_videos.py` utility scripts provided in this directory to do so automatically.
 
-Make sure images are labeled correctly according to folders.
+---
 
-## Training the Model
+## 2. Training the Models
 
-Run the training script from the `inference/` directory:
+### Option A: Train the High-Accuracy EfficientNet-B0 Model (Recommended)
+
+Run the advanced two-phase training pipeline (Warmup Phase + Fine-Tuning Phase with Cosine Decay):
 
 ```bash
-python train.py --data_dir /path/to/dataset --epochs 10 --batch_size 32 --model_save_path mesonet_model.h5
+python train_pro.py --data_dir ./dataset --epochs 50 --batch_size 32 --model_save_path efficientnet_deepfake_final.h5
 ```
 
-- Replace `/path/to/dataset` with the actual path to your dataset directory.
-- Adjust `--epochs` and `--batch_size` as required for your hardware and dataset size.
-- The trained model weights will be saved as `mesonet_model.h5` by default.
+- `--data_dir`: Path to your dataset directory.
+- `--epochs`: Number of fine-tuning epochs (default: 50).
+- `--batch_size`: Batch size for training (default: 32).
+- `--model_save_path`: Output path for the best trained model (default: `efficientnet_deepfake_pro.h5`).
 
-## Using the Trained Model for Inference
+### Option B: Train the Lightweight Enhanced MesoNet Model
 
-- Copy or move the trained weights file (`mesonet_model.h5`) to your inference service directory.
-- Modify `inference/main.py` to load the trained weights instead of the placeholder model if not already set.
-- Restart the inference service.
+Run the custom convolutional neural network training pipeline:
 
-## Additional Notes
+```bash
+python train_improved.py --data_dir ./dataset --epochs 50 --batch_size 32 --model_save_path enhanced_mesonet_optimized.h5
+```
 
-- The training script uses data augmentation for robustness.
-- TensorFlow 2.x with Keras API is required.
-- GPU usage is recommended for faster training.
+- `--data_dir`: Path to your dataset directory.
+- `--epochs`: Number of training epochs (default: 50).
+- `--batch_size`: Batch size (default: 32).
+- `--model_save_path`: Output path for the best trained model (default: `enhanced_mesonet.h5`).
 
-## Dependencies
+---
 
-Ensure you have installed all dependencies listed in `requirements.txt` including TensorFlow, OpenCV, Pillow, and FastAPI.
+## 3. Deploying the Trained Model for Inference
 
-## Troubleshooting
+Once training is complete, your best model will be saved as an `.h5` file. To deploy it to the FastAPI inference service:
 
-- Check GPU availability if training is slow.
-- Verify dataset image formats.
-- Monitor loss and accuracy metrics for overfitting or underfitting.
+1. Copy or move your trained model file into the `inference/` directory (e.g. name it `efficientnet_deepfake_final.h5` or `enhanced_mesonet_optimized.h5`).
+2. Update the `MODEL_PATH` variable in your root `.env` file to point to your new model:
+   ```env
+   MODEL_PATH=./efficientnet_deepfake_final.h5
+   ```
+3. (Optional) If you are using the MesoNet model, ensure `ALLOW_MESONET_FALLBACK=true` is set in your `.env` file.
+4. Restart the services. The FastAPI inference engine will automatically detect the architecture and load your trained weights.
 
-For further assistance, refer to official TensorFlow and FastAPI documentation.
+---
+
+## Dependencies & Requirements
+
+Ensure you have installed all dependencies listed in `inference/requirements.txt`:
+* TensorFlow 2.x
+* OpenCV
+* Pillow
+* NumPy
+
+```bash
+pip install -r requirements.txt
+```
+
+> [!NOTE]
+> GPU training is highly recommended for faster training, especially for the EfficientNet-B0 model. Ensure CUDA and cuDNN are correctly configured in your environment.
