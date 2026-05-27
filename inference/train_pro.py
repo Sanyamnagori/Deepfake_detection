@@ -18,14 +18,14 @@ def build_efficientnet_model(input_shape=(224, 224, 3)):
     base_model = EfficientNetB0(
         include_top=False,
         weights='imagenet',
-        input_tensor=inputs
+        input_shape=input_shape
     )
     
     # Freeze the base model initially (Phase 1)
     base_model.trainable = False
     
-    # Rebuild top layers
-    x = base_model.output
+    # Rebuild top layers - call base_model as a layer
+    x = base_model(inputs, training=False)
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.BatchNormalization()(x)
     x = layers.Dropout(0.5)(x)  # Strong dropout for regularization
