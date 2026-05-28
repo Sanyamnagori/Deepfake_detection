@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Upload, Brain, FileText, ArrowRight, LogIn, UserPlus, CheckCircle, Zap, Lock } from 'lucide-react';
 
-function Home() {
+function Home({ isAuthenticated }) {
   return (
     <div className="home-page">
       {/* Hero Section */}
@@ -23,15 +23,25 @@ function Home() {
             </p>
           </div>
           <div className="hero-actions">
-            <Link to="/register" className="btn-professional">
-              <UserPlus size={20} />
-              Start Free Analysis
-              <ArrowRight size={20} />
-            </Link>
-            <Link to="/login" className="btn-professional btn-secondary">
-              <LogIn size={20} />
-              Sign In
-            </Link>
+            {isAuthenticated ? (
+              <Link to="/upload" className="btn-professional">
+                <Upload size={20} />
+                Upload & Verify Media
+                <ArrowRight size={20} />
+              </Link>
+            ) : (
+              <>
+                <Link to="/register" className="btn-professional">
+                  <UserPlus size={20} />
+                  Start Free Analysis
+                  <ArrowRight size={20} />
+                </Link>
+                <Link to="/login" className="btn-professional btn-secondary">
+                  <LogIn size={20} />
+                  Sign In
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

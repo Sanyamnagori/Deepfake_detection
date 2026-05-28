@@ -76,7 +76,7 @@ function AppContent({ isAuthenticated, setIsAuthenticated }) {
       <Navigation isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated} />
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
           <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
           <Route path="/register" element={<Register setIsAuthenticated={setIsAuthenticated} />} />
           <Route path="/upload" element={isAuthenticated ? <Upload /> : <Navigate to="/login" />} />
