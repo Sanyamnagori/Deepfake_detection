@@ -113,6 +113,7 @@ def evaluate_on_dataset(model, dataset_dir, max_files=200):
 
 def main():
     model_paths = [
+        ("Deployed Ultra Final Model", os.path.join(base_dir, "efficientnet_deepfake_ultra_final.h5")),
         ("Deployed Ultra Model", os.path.join(base_dir, "efficientnet_deepfake_ultra.h5")),
         ("Colab 5-ep Model", os.path.join(project_dir, "efficientnet_deepfake_final(new).h5")),
         ("Colab Ultra (Root Copy)", os.path.join(project_dir, "efficientnet_deepfake_ultra.h5"))

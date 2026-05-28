@@ -27,7 +27,7 @@ def _download(url: str, destination: str) -> None:
 
 def main() -> int:
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    default_model_path = os.path.join(base_dir, "efficientnet_deepfake_ultra.h5")
+    default_model_path = os.path.join(base_dir, "efficientnet_deepfake_ultra_final.h5")
     model_path_raw = _env("MODEL_PATH", default_model_path)
     model_path = model_path_raw if os.path.isabs(model_path_raw) else os.path.abspath(os.path.join(base_dir, model_path_raw))
     model_url = _env("MODEL_URL")

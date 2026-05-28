@@ -125,6 +125,7 @@ def load_mesonet_model():
     # List of models to try in order of preference.
     # By default, only EfficientNet artifacts are allowed.
     candidates = [
+        ("efficientnet_deepfake_ultra_final.h5", "efficientnet"),
         ("efficientnet_deepfake_ultra.h5", "efficientnet"),
         ("efficientnet_deepfake_final.h5", "efficientnet"),
         ("efficientnet_deepfake.h5", "efficientnet"),
