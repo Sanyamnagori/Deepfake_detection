@@ -48,6 +48,8 @@ tmp/
 temp/
 
 ### ML artifacts / datasets (keep repo light)
+dataset/
+dataset_processed/
 inference/dataset_processed/
 inference/dataset/
 inference/datasets/
@@ -67,6 +69,6 @@ inference/data/
 **/*.ckpt
 
 # Track the primary pre-trained EfficientNet-B0 model
-!inference/efficientnet_deepfake_final.h5
+!inference/efficientnet_deepfake_ultra.h5
 
 

@@ -44,6 +44,21 @@ python train_pro.py --data_dir ./dataset --epochs 50 --batch_size 32 --model_sav
 - `--batch_size`: Batch size for training (default: 32).
 - `--model_save_path`: Output path for the best trained model (default: `efficientnet_deepfake_pro.h5`).
 
+### Option A-Ultra: Train the Ultra-Robust EfficientNet-B0 Model (Highly Recommended for Wild/General Media)
+
+The `train_ultra.py` script is highly optimized to fix common issues with early convergence, class imbalances, and Keras quantization mismatches.
+
+To run it on Colab/GPU:
+```bash
+python train_ultra.py --data_dir ./dataset --epochs 45 --warmup 5 --batch_size 32 --patience 12 --model_save_path efficientnet_deepfake_ultra.h5
+```
+
+- `--data_dir`: Path to the extracted face frames dataset.
+- `--epochs`: Number of backbone fine-tuning epochs (default: 40).
+- `--warmup`: Number of frozen warmup epochs (default: 5). Guaranteed to complete.
+- `--patience`: Early stopping patience for Phase 2 (default: 12).
+- `--model_save_path`: Output path. Automatically formatted and repaired for Windows on save.
+
 ### Option B: Train the Lightweight Enhanced MesoNet Model
 
 Run the custom convolutional neural network training pipeline:

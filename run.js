@@ -2,7 +2,25 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+// Load environment variables from .env if present
+const dotenvPath = path.join(__dirname, '.env');
+if (fs.existsSync(dotenvPath)) {
+  const dotenvContent = fs.readFileSync(dotenvPath, 'utf8');
+  dotenvContent.split(/\r?\n/).forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const index = trimmed.indexOf('=');
+      if (index !== -1) {
+        const key = trimmed.substring(0, index).trim();
+        const val = trimmed.substring(index + 1).trim();
+        process.env[key] = val;
+      }
+    }
+  });
+}
+
 console.log(' Starting DeepFake Detection System...\n');
+
 
 // Create necessary directories
 const createDirectories = () => {
@@ -36,9 +54,10 @@ const installDeps = () => {
 
   // Install backend dependencies
   console.log('Installing backend dependencies...');
-  const backendInstall = spawn('npm.cmd', ['install'], {
+  const backendInstall = spawn('npm', ['install'], {
     cwd: path.join(__dirname, 'backend'),
-    stdio: 'inherit'
+    stdio: 'inherit',
+    shell: true
   });
 
   backendInstall.on('close', (code) => {
@@ -49,9 +68,10 @@ const installDeps = () => {
 
     // Install frontend dependencies
     console.log('Installing frontend dependencies...');
-    const frontendInstall = spawn('npm.cmd', ['install'], {
+    const frontendInstall = spawn('npm', ['install'], {
       cwd: path.join(__dirname, 'frontend'),
-      stdio: 'inherit'
+      stdio: 'inherit',
+      shell: true
     });
 
     frontendInstall.on('close', (code) => {
@@ -60,23 +80,9 @@ const installDeps = () => {
         process.exit(1);
       }
 
-      // Install inference dependencies
-      console.log('Installing inference dependencies...');
-      const inferenceInstall = spawn('pip', ['install', '-r', 'requirements.txt'], {
-        cwd: path.join(__dirname, 'inference'),
-        stdio: 'inherit'
-      });
-
-      inferenceInstall.on('close', (code) => {
-        if (code !== 0) {
-          console.error(' Failed to install inference dependencies');
-          process.exit(1);
-        }
-
-        console.log(' Dependencies installed successfully!\n');
-        createDirectories();
-        startServices();
-      });
+      console.log(' Dependencies installed successfully!\n');
+      createDirectories();
+      startServices();
     });
   });
 };
@@ -107,6 +113,11 @@ function startServices() {
 }
 
 function startRuntimeServices() {
+  let mongoProcess = null;
+  let backendProcess = null;
+  let inferenceProcess = null;
+  let frontendProcess = null;
+
   // Check if MongoDB is already running
   console.log(' Checking MongoDB...');
   const mongoCheck = spawn('netstat', ['-ano'], {
@@ -123,7 +134,7 @@ function startRuntimeServices() {
   mongoCheck.on('close', () => {
     if (!mongoRunning) {
       console.log(' Starting MongoDB...');
-      const mongoProcess = spawn('mongod', ['--dbpath', 'C:\\data\\db'], {
+      mongoProcess = spawn('mongod', ['--dbpath', 'C:\\data\\db'], {
         stdio: 'inherit'
       });
     } else {
@@ -135,23 +146,26 @@ function startRuntimeServices() {
   setTimeout(() => {
     // Start Backend
     console.log('🔧 Starting Backend...');
-    const backendProcess = spawn('cmd.exe', ['/c', 'npm start'], {
+    backendProcess = spawn('cmd.exe', ['/c', 'npm start'], {
       cwd: path.join(__dirname, 'backend'),
       stdio: 'inherit'
     });
 
     // Start Inference
     console.log(' Starting Inference Service...');
-    const inferenceProcess = spawn('cmd.exe', ['/c', 'python -m uvicorn main:app --host 127.0.0.1 --port 8000'], {
+    inferenceProcess = spawn('cmd.exe', ['/c', 'python -m uvicorn main:app --host 127.0.0.1 --port 8000'], {
       cwd: path.join(__dirname, 'inference'),
       stdio: 'inherit'
     });
 
     // Start Frontend
     console.log(' Starting Frontend...');
-    const frontendProcess = spawn('cmd.exe', ['/c', 'npm start'], {
+    const frontendEnv = { ...process.env };
+    delete frontendEnv.PORT;
+    frontendProcess = spawn('cmd.exe', ['/c', 'npm start'], {
       cwd: path.join(__dirname, 'frontend'),
-      stdio: 'inherit'
+      stdio: 'inherit',
+      env: frontendEnv
     });
 
     console.log('\n All services started!');
@@ -162,10 +176,10 @@ function startRuntimeServices() {
     process.on('SIGINT', () => {
       console.log('\n Stopping all services...');
       try {
-        mongoProcess.kill();
-        backendProcess.kill();
-        inferenceProcess.kill();
-        frontendProcess.kill();
+        if (mongoProcess) mongoProcess.kill();
+        if (backendProcess) backendProcess.kill();
+        if (inferenceProcess) inferenceProcess.kill();
+        if (frontendProcess) frontendProcess.kill();
       } catch (e) {
         // Ignore errors when killing processes
       }

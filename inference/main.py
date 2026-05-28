@@ -125,6 +125,7 @@ def load_mesonet_model():
     # List of models to try in order of preference.
     # By default, only EfficientNet artifacts are allowed.
     candidates = [
+        ("efficientnet_deepfake_ultra.h5", "efficientnet"),
         ("efficientnet_deepfake_final.h5", "efficientnet"),
         ("efficientnet_deepfake.h5", "efficientnet"),
     ]
@@ -351,27 +352,27 @@ async def detect_deepfake(request: DetectRequest):
                 avg_model_output = sum(predictions) / len(predictions)
                 model_output = avg_model_output
                 
-                min_real_prob = min(predictions)
-                heatmap_confidence = 1.0 - min_real_prob if avg_model_output < 0.5 else avg_model_output
+                max_fake_prob = max(predictions)
+                heatmap_confidence = 1.0 - max_fake_prob if avg_model_output < 0.5 else avg_model_output
             else:
                 processed_img = preprocess_image(request.filePath)
                 model_output = float(mesonet_model.predict(processed_img, verbose=0)[0][0])
                 heatmap_confidence = None
             
-            prob_real = model_output
-            prob_fake = 1.0 - model_output
+            prob_real = 1.0 - model_output
+            prob_fake = model_output
 
-        # Apply threshold: require >= 0.5 confidence for "real"
+        # Apply threshold: require >= 0.5 confidence for "fake"
         if model_output >= 0.5:
-            prediction = "real"  # High output = label 1 = 'real'
-            confidence = prob_real
-            if heatmap_confidence is None:
-                heatmap_confidence = prob_real
-        else:
-            prediction = "fake"  # Low output = label 0 = 'fake'
+            prediction = "fake"  # High output = label 1 = 'fake'
             confidence = prob_fake
             if heatmap_confidence is None:
                 heatmap_confidence = prob_fake
+        else:
+            prediction = "real"  # Low output = label 0 = 'real'
+            confidence = prob_real
+            if heatmap_confidence is None:
+                heatmap_confidence = prob_real
         
         # Debug logging
         logger.info(

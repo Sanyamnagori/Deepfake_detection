@@ -73,16 +73,16 @@ def run_prediction(file_path):
             processed_img = main.preprocess_image(file_path)
             model_output = float(main.mesonet_model.predict(processed_img, verbose=0)[0][0])
             
-        prob_real = model_output
-        prob_fake = 1.0 - model_output
+        prob_real = 1.0 - model_output
+        prob_fake = model_output
 
         # Threshold check
         if model_output >= 0.5:
-            verdict = "REAL"
-            confidence = prob_real
-        else:
             verdict = "FAKE"
             confidence = prob_fake
+        else:
+            verdict = "REAL"
+            confidence = prob_real
 
         print("\n" + "=" * 80)
         print("🎯 DETECTION RESULT")
