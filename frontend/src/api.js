@@ -73,4 +73,12 @@ export const getResultDetails = (resultId) => {
   return api.get(`/result/${resultId}`);
 };
 
+export const getResultsHistory = () => {
+  return api.get('/result');
+};
+
+export const compareModels = (uploadId) => {
+  return api.post('/detect/compare', { uploadId });
+};
+
 export default api;

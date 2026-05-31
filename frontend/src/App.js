@@ -6,13 +6,30 @@ import Register from './components/Register';
 import Upload from './components/Upload';
 import Detect from './components/Detect';
 import Report from './components/Report';
-import { Home as HomeIcon, Upload as UploadIcon, Shield, LogOut, Sun, Moon } from 'lucide-react';
+import Archive from './components/Archive';
+import BattleArena from './components/BattleArena';
+import { Home as HomeIcon, Upload as UploadIcon, Shield, LogOut, Sun, Moon, History, Cpu } from 'lucide-react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import './App.css';
 
 function Navigation({ isAuthenticated, setIsAuthenticated }) {
   const location = useLocation();
   const { isDarkMode, toggleTheme } = useTheme();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setIsAdmin(user.role === 'admin');
+      } else {
+        setIsAdmin(false);
+      }
+    } catch (e) {
+      setIsAdmin(false);
+    }
+  }, [isAuthenticated, location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -33,10 +50,22 @@ function Navigation({ isAuthenticated, setIsAuthenticated }) {
             Home
           </Link>
           {isAuthenticated && (
-            <Link to="/upload" className={`nav-link ${location.pathname === '/upload' ? 'active' : ''}`}>
-              <UploadIcon size={18} />
-              Upload
-            </Link>
+            <>
+              <Link to="/upload" className={`nav-link ${location.pathname === '/upload' ? 'active' : ''}`}>
+                <UploadIcon size={18} />
+                Upload
+              </Link>
+              <Link to="/archive" className={`nav-link ${location.pathname === '/archive' ? 'active' : ''}`}>
+                <History size={18} />
+                Archive
+              </Link>
+              {isAdmin && (
+                <Link to="/admin/compare" className={`nav-link ${location.pathname === '/admin/compare' ? 'active' : ''}`} style={{ borderColor: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent)' }}>
+                  <Cpu size={18} />
+                  Battle Arena
+                </Link>
+              )}
+            </>
           )}
           
           <button onClick={toggleTheme} className="theme-toggle-btn" aria-label="Toggle Theme">
@@ -82,6 +111,8 @@ function AppContent({ isAuthenticated, setIsAuthenticated }) {
           <Route path="/upload" element={isAuthenticated ? <Upload /> : <Navigate to="/login" />} />
           <Route path="/detect/:uploadId" element={isAuthenticated ? <Detect /> : <Navigate to="/login" />} />
           <Route path="/report/:resultId" element={isAuthenticated ? <Report /> : <Navigate to="/login" />} />
+          <Route path="/archive" element={isAuthenticated ? <Archive /> : <Navigate to="/login" />} />
+          <Route path="/admin/compare" element={isAuthenticated ? <BattleArena /> : <Navigate to="/login" />} />
         </Routes>
       </main>
       <Footer />

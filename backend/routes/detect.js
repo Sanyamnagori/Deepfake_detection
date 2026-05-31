@@ -46,4 +46,34 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
+// POST /api/detect/compare (Admin only comparison)
+router.post('/compare', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
+    }
+
+    const { uploadId } = req.body;
+    if (!uploadId) {
+      return res.status(400).json({ error: 'uploadId required' });
+    }
+
+    const upload = await Upload.findById(uploadId);
+    if (!upload) {
+      return res.status(404).json({ error: 'Upload not found' });
+    }
+
+    // Call inference service's compare endpoint
+    const inferenceResponse = await axios.post('http://localhost:8000/compare', {
+      filePath: upload.path,
+      uploadId: uploadId,
+    });
+
+    res.json(inferenceResponse.data);
+  } catch (error) {
+    console.error('Model comparison scan failed:', error);
+    res.status(500).json({ error: 'Comparative model analysis failed.' });
+  }
+});
+
 module.exports = router;

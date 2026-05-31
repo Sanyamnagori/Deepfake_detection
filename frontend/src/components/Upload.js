@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload as UploadIcon, FileVideo, FileImage, X } from 'lucide-react';
+import { Upload as UploadIcon, FileVideo, FileImage, X, ShieldAlert } from 'lucide-react';
 import { uploadFile } from '../api';
 
-const Upload = ({ onUpload }) => {
+const Upload = () => {
   const navigate = useNavigate();
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -22,7 +22,7 @@ const Upload = ({ onUpload }) => {
     if (!selectedFile) return;
 
     const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'image/jpeg', 'image/png', 'image/jpg'];
-    const maxSize = 200 * 1024 * 1024; // Increased to 200MB
+    const maxSize = 200 * 1024 * 1024; // 200MB
 
     if (!allowedTypes.includes(selectedFile.type)) {
       setError('Please select a valid video or image file (MP4, AVI, MOV, JPEG, PNG)');
@@ -82,8 +82,12 @@ const Upload = ({ onUpload }) => {
   };
 
   const getFileIcon = () => {
-    if (!file) return <UploadIcon className="upload-icon" />;
-    return file.type.startsWith('video/') ? <FileVideo size={48} /> : <FileImage size={48} />;
+    if (!file) return <UploadIcon className="upload-icon" size={60} />;
+    return file.type.startsWith('video/') ? (
+      <FileVideo size={56} style={{ color: '#00f2fe', filter: 'drop-shadow(0 0 8px rgba(0, 242, 254, 0.4))', marginBottom: '1.25rem' }} />
+    ) : (
+      <FileImage size={56} style={{ color: '#00f2fe', filter: 'drop-shadow(0 0 8px rgba(0, 242, 254, 0.4))', marginBottom: '1.25rem' }} />
+    );
   };
 
   const formatFileSize = (bytes) => {
@@ -95,48 +99,72 @@ const Upload = ({ onUpload }) => {
   };
 
   return (
-    <div>
-      <h2 style={{ marginBottom: '1.5rem', color: '#1e293b', fontSize: '1.5rem', fontWeight: '600' }}>
-        Upload Media File
-      </h2>
+    <div className="main-container">
+      <div className="header" style={{ marginBottom: '2.5rem' }}>
+        <h1 style={{ fontSize: '1.85rem', fontWeight: '800', background: 'linear-gradient(120deg, #ffffff 40%, #00f2fe 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          Secure Authentication Upload
+        </h1>
+        <p style={{ color: 'var(--gray-500)', fontSize: '0.95rem', marginTop: '0.25rem' }}>
+          Upload high-resolution media to initialize synthetic deepfake analysis scanning
+        </p>
+      </div>
 
       <div
         className={`upload-area ${dragOver ? 'dragover' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => !file && fileInputRef.current?.click()}
+        style={{ cursor: file ? 'default' : 'pointer' }}
       >
         {getFileIcon()}
 
         {!file ? (
           <>
-            <div className="upload-text">Drop your file here or click to browse</div>
-            <div className="upload-subtext">Supports MP4, AVI, MOV, JPEG, PNG (max 100MB)</div>
+            <div className="upload-text">Drop your secure media here or click to browse</div>
+            <div className="upload-subtext">Supports MP4, AVI, MOV, JPEG, PNG (max 200MB)</div>
           </>
         ) : (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '0.5rem' }}>
-              {file.name}
+          <div style={{ width: '100%', maxWidth: '380px', margin: '0 auto' }}>
+            <div className="result-details" style={{ marginTop: 0, marginBottom: '1.5rem', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div className="result-item" style={{ padding: '0.85rem 1.1rem' }}>
+                <span className="result-label" style={{ fontSize: '0.85rem' }}>File Name</span>
+                <span className="result-value" style={{ fontSize: '0.85rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.name}
+                </span>
+              </div>
+              <div className="result-item" style={{ padding: '0.85rem 1.1rem' }}>
+                <span className="result-label" style={{ fontSize: '0.85rem' }}>File Size</span>
+                <span className="result-value" style={{ fontSize: '0.85rem' }}>
+                  {formatFileSize(file.size)}
+                </span>
+              </div>
+              <div className="result-item" style={{ padding: '0.85rem 1.1rem' }}>
+                <span className="result-label" style={{ fontSize: '0.85rem' }}>File Type</span>
+                <span className="result-value" style={{ fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                  {file.type.split('/')[1]}
+                </span>
+              </div>
             </div>
-            <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
-              {formatFileSize(file.size)}
-            </div>
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 removeFile();
               }}
-              className="btn danger"
+              className="btn-professional btn-secondary"
               style={{
-                marginTop: '1rem',
-                padding: '0.5rem 1rem',
-                fontSize: '0.9rem',
-                minWidth: 'auto'
+                padding: '0.65rem 1.5rem',
+                fontSize: '0.88rem',
+                borderRadius: 'var(--radius-md)',
+                display: 'inline-flex',
+                gap: '0.4rem',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                color: '#ef4444'
               }}
             >
-              <X size={16} style={{ marginRight: '0.25rem' }} />
-              Remove
+              <X size={16} />
+              Reset Selection
             </button>
           </div>
         )}
@@ -150,19 +178,27 @@ const Upload = ({ onUpload }) => {
         />
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="alert-banner-box" style={{ margin: '1.25rem 0' }}>
+          <ShieldAlert size={18} />
+          <span><strong>Error:</strong> {error}</span>
+        </div>
+      )}
 
       {uploading && (
-        <div className="progress-container">
+        <div className="progress-container" style={{ marginTop: '1.5rem', background: 'rgba(15, 23, 42, 0.6)' }}>
           <div className="progress-bar-wrapper">
             <div 
               className="progress-bar-fill" 
               style={{ width: `${uploadProgress}%` }}
             ></div>
           </div>
-          <div className="progress-text">
-            <span>Uploading...</span>
-            <span>{uploadProgress}%</span>
+          <div className="progress-text" style={{ color: 'var(--gray-700)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span className="loading-spinner" style={{ width: '12px', height: '12px', margin: 0, borderWidth: '1.5px' }}></span>
+              Uploading payload to AI nodes...
+            </span>
+            <span style={{ color: '#00f2fe' }}>{uploadProgress}%</span>
           </div>
         </div>
       )}
@@ -170,11 +206,17 @@ const Upload = ({ onUpload }) => {
       <button
         onClick={handleUpload}
         disabled={!file || uploading}
-        className="btn"
-        style={{ width: '100%', marginTop: '1rem' }}
+        className="btn-professional"
+        style={{ width: '100%', marginTop: '1.5rem', borderRadius: 'var(--radius-md)', padding: '1rem' }}
       >
-        {uploading && <span className="loading-spinner"></span>}
-        {uploading ? 'Uploading...' : 'Upload & Analyze'}
+        {uploading ? (
+          <>
+            <span className="loading-spinner" style={{ borderTopColor: 'var(--black)' }}></span>
+            Initializing Scan...
+          </>
+        ) : (
+          'Upload & Run AI Analysis'
+        )}
       </button>
     </div>
   );

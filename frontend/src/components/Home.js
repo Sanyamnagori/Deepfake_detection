@@ -11,6 +11,33 @@ function Home({ isAuthenticated }) {
           <div className="hero-icon">
             <Shield size={72} />
           </div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div className="cyber-badge" style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.4rem 1.25rem',
+              background: 'var(--primary-glow)',
+              border: '1px solid var(--primary-glow)',
+              borderRadius: '9999px',
+              color: 'var(--primary)',
+              fontSize: '0.8rem',
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: '1.5rem',
+              boxShadow: 'var(--shadow-glow)'
+            }}>
+              <span className="loading-spinner" style={{
+                width: '8px',
+                height: '8px',
+                border: '1.5px solid var(--primary-glow)',
+                borderTopColor: 'var(--primary)',
+                margin: 0
+              }}></span>
+              AI Core Security Active
+            </div>
+          </div>
           <h1 className="hero-title">Advanced Media Authenticity Verification</h1>
           <p className="hero-subtitle">
             Enterprise-grade AI protection against digital deception and misinformation

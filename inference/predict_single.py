@@ -29,7 +29,7 @@ except Exception as e:
     sys.exit(1)
 
 # Set model environment variable to the deployed model
-os.environ["MODEL_PATH"] = os.path.join(base_dir, "efficientnet_deepfake_final.h5")
+os.environ["MODEL_PATH"] = os.path.join(base_dir, "efficientnet_deepfake_ultra_final.h5")
 os.environ["ALLOW_MESONET_FALLBACK"] = "false"
 os.environ["ALLOW_PLACEHOLDER_MODEL"] = "false"
 
@@ -73,16 +73,17 @@ def run_prediction(file_path):
             processed_img = main.preprocess_image(file_path)
             model_output = float(main.mesonet_model.predict(processed_img, verbose=0)[0][0])
             
-        prob_real = 1.0 - model_output
-        prob_fake = model_output
+        prob_real = model_output
+        prob_fake = 1.0 - model_output
 
-        # Threshold check
-        if model_output >= 0.5:
-            verdict = "FAKE"
-            confidence = prob_fake
-        else:
+        # Threshold check (default: 0.50 under corrected mapping)
+        threshold = float(os.getenv("CLASSIFICATION_THRESHOLD", "0.50"))
+        if model_output >= threshold:
             verdict = "REAL"
             confidence = prob_real
+        else:
+            verdict = "FAKE"
+            confidence = prob_fake
 
         print("\n" + "=" * 80)
         print("🎯 DETECTION RESULT")

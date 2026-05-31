@@ -15,6 +15,7 @@ const detectRoutes = require('./routes/detect');
 const reportRoutes = require('./routes/report');
 const authRoutes = require('./routes/auth');
 const resultRoutes = require('./routes/result');
+const User = require('./models/User');
 
 const app = express();
 const server = http.createServer(app);
@@ -44,7 +45,7 @@ if (process.env.NODE_ENV !== 'production') {
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 10000, // limit each IP to 10000 requests per windowMs
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again later.'
@@ -183,6 +184,24 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/deepfake'
 })
 .then(() => {
   logger.info('MongoDB connected successfully');
+  
+  // Seed default admin user
+  User.findOne({ email: 'admin123@gmail.com' })
+    .then(async (admin) => {
+      if (!admin) {
+        const newAdmin = new User({
+          username: 'admin123',
+          email: 'admin123@gmail.com',
+          password: 'admin123',
+          role: 'admin'
+        });
+        await newAdmin.save();
+        logger.info('Default admin user successfully seeded: admin123@gmail.com');
+      }
+    })
+    .catch((err) => {
+      logger.error('Error seeding admin user:', err);
+    });
 })
 .catch((error) => {
   logger.error('MongoDB connection error:', error);
