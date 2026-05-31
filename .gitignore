@@ -71,4 +71,7 @@ inference/data/
 # Track the primary pre-trained EfficientNet-B0 model
 !inference/efficientnet_deepfake_ultra_final.h5
 
-
+### Local testing/evaluation scripts
+inference/evaluate_all.py
+inference/evaluate_all_processed.py
+inference/evaluate_detailed.py
