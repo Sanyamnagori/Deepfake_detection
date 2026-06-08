@@ -21,6 +21,18 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Ensure upload and report directories exist
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'uploads');
+const reportDir = path.join(__dirname, 'reports');
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+if (!fs.existsSync(reportDir)) {
+  fs.mkdirSync(reportDir, { recursive: true });
+}
+
 // Configure Winston logger
 const logger = winston.createLogger({
   level: 'info',
