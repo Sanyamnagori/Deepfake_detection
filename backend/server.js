@@ -42,6 +42,9 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// Trust proxy for Render (required for rate limiter to parse X-Forwarded-For IPs)
+app.set('trust proxy', 1);
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
