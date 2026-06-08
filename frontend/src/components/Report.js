@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Download, CheckCircle2, AlertOctagon, RotateCcw, ShieldAlert, Calendar, FileText, Activity } from 'lucide-react';
-import { downloadReport, getResultDetails } from '../api';
+import { downloadReport, getResultDetails, BACKEND_ORIGIN } from '../api';
 
 const Report = ({ resultId }) => {
   const navigate = useNavigate();
@@ -135,13 +135,13 @@ const Report = ({ resultId }) => {
               <div className={`media-frame ${isReal ? 'glow-real' : 'glow-fake'}`}>
                 {isVideoFile(result.fileName) ? (
                   <video
-                    src={`http://localhost:5000/uploads/${result.fileName}`}
+                    src={`${BACKEND_ORIGIN}/uploads/${result.fileName}`}
                     controls
                     className="analysis-media"
                   />
                 ) : (
                   <img
-                    src={`http://localhost:5000/uploads/${result.fileName}`}
+                    src={`${BACKEND_ORIGIN}/uploads/${result.fileName}`}
                     alt="Uploaded payload source"
                     className="analysis-media"
                     onError={(e) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Brain, Terminal, Cpu, Layers } from 'lucide-react';
-import { detectDeepfake } from '../api';
+import { detectDeepfake, BACKEND_ORIGIN } from '../api';
 
 const Detect = ({ uploadId }) => {
   const navigate = useNavigate();
@@ -24,7 +24,9 @@ const Detect = ({ uploadId }) => {
   useEffect(() => {
     let ws;
     if (detecting && currentUploadId) {
-      ws = new WebSocket(`ws://localhost:5000?uploadId=${currentUploadId}`);
+      const wsProtocol = BACKEND_ORIGIN.startsWith('https') ? 'wss' : 'ws';
+      const wsHost = BACKEND_ORIGIN.replace(/^https?:\/\//, '');
+      ws = new WebSocket(`${wsProtocol}://${wsHost}?uploadId=${currentUploadId}`);
       
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);

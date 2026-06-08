@@ -6,6 +6,16 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Inference service URL (defaults to localhost for local dev / docker-compose)
+const INFERENCE_URL = process.env.INFERENCE_URL || 'http://localhost:8000';
+
+// Build the public URL for a given upload filename so the inference service
+// can download the file when it doesn't share a local filesystem with the backend.
+function buildFileUrl(req, filename) {
+  const backendOrigin = `${req.protocol}://${req.get('host')}`;
+  return `${backendOrigin}/uploads/${filename}`;
+}
+
 // POST /api/detect
 router.post('/', protect, async (req, res) => {
   try {
@@ -20,8 +30,9 @@ router.post('/', protect, async (req, res) => {
     }
 
     // Call inference service
-    const inferenceResponse = await axios.post('http://localhost:8000/detect', {
+    const inferenceResponse = await axios.post(`${INFERENCE_URL}/detect`, {
       filePath: upload.path,
+      fileUrl: buildFileUrl(req, upload.filename),
       uploadId: uploadId,
     });
 
@@ -64,8 +75,9 @@ router.post('/compare', protect, async (req, res) => {
     }
 
     // Call inference service's compare endpoint
-    const inferenceResponse = await axios.post('http://localhost:8000/compare', {
+    const inferenceResponse = await axios.post(`${INFERENCE_URL}/compare`, {
       filePath: upload.path,
+      fileUrl: buildFileUrl(req, upload.filename),
       uploadId: uploadId,
     });
 

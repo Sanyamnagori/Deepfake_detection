@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+// Derive the backend origin (e.g. https://my-backend.onrender.com) from the API URL
+// so other components can build upload URLs and WebSocket URLs dynamically.
+export const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
 // Create axios instance with interceptors
 const api = axios.create({

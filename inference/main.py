@@ -10,10 +10,19 @@ from PIL import Image, ImageDraw
 import os
 import logging
 import requests
+import tempfile
+import shutil
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Backend URL for reporting progress (defaults to localhost for local dev / docker-compose)
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:5000')
+
+# Temporary directory for downloaded files from the backend
+TEMP_DOWNLOAD_DIR = os.path.join(tempfile.gettempdir(), 'deepfake_downloads')
+os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
 
 # Global model variables
 efficientnet_model = None
@@ -34,6 +43,7 @@ app = FastAPI(title="DeepFake Detection Inference Service", lifespan=lifespan)
 
 class DetectRequest(BaseModel):
     filePath: str
+    fileUrl: str = None  # Public URL to download the file when not on shared disk
     uploadId: str = None
 
 class DetectResponse(BaseModel):
@@ -45,6 +55,7 @@ class DetectResponse(BaseModel):
 
 class CompareRequest(BaseModel):
     filePath: str
+    fileUrl: str = None  # Public URL to download the file when not on shared disk
     uploadId: str = None
 
 class CompareResponse(BaseModel):
@@ -135,18 +146,59 @@ def load_all_models():
         logger.warning("EfficientNet not loaded. Using MesoNet as primary fallback.")
         efficientnet_model = mesonet_model
 
+def resolve_file_path(file_path: str, file_url: str = None) -> tuple:
+    """Resolve the actual file path, downloading from URL if local path doesn't exist.
+    
+    Returns (resolved_path, is_temp) where is_temp indicates the file was downloaded
+    and should be cleaned up after use.
+    """
+    # Try local path first (works in docker-compose / local dev)
+    if os.path.exists(file_path):
+        return file_path, False
+    
+    # If local path doesn't exist but we have a download URL, fetch it
+    if file_url:
+        try:
+            logger.info(f"Local path not found, downloading from: {file_url}")
+            response = requests.get(file_url, stream=True, timeout=120)
+            response.raise_for_status()
+            
+            # Preserve the original filename/extension
+            filename = os.path.basename(file_path)
+            local_path = os.path.join(TEMP_DOWNLOAD_DIR, filename)
+            
+            with open(local_path, 'wb') as f:
+                shutil.copyfileobj(response.raw, f)
+            
+            logger.info(f"Downloaded file to: {local_path}")
+            return local_path, True
+        except Exception as e:
+            logger.error(f"Failed to download file from {file_url}: {e}")
+            raise FileNotFoundError(f"Cannot access file locally ({file_path}) or via URL ({file_url}): {e}")
+    
+    raise FileNotFoundError(f"File not found: {file_path} (no fileUrl provided for remote download)")
+
+def cleanup_temp_file(file_path: str, is_temp: bool):
+    """Remove a temporary downloaded file after inference completes."""
+    if is_temp and os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            logger.info(f"Cleaned up temp file: {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to clean up temp file {file_path}: {e}")
+
 def report_progress(upload_id, progress, current_frame=None, total_frames=None):
     """Notify the Node backend about the current processing progress."""
     if not upload_id:
         return
     try:
-        url = "http://localhost:5000/api/internal/progress"
+        url = f"{BACKEND_URL}/api/internal/progress"
         requests.post(url, json={
             "uploadId": upload_id,
             "progress": progress,
             "currentFrame": current_frame,
             "totalFrames": total_frames
-        }, timeout=1)
+        }, timeout=2)
     except Exception as e:
         logger.error(f"Failed to report progress: {e}")
 
@@ -302,10 +354,11 @@ def generate_heatmap(prediction, confidence):
 
 @app.post("/detect", response_model=DetectResponse)
 async def detect_deepfake(request: DetectRequest):
+    resolved_path = None
+    is_temp = False
     try:
-        # Check if file exists
-        if not os.path.exists(request.filePath):
-            raise FileNotFoundError(f"File not found: {request.filePath}")
+        # Resolve file: try local path first, fall back to downloading from URL
+        resolved_path, is_temp = resolve_file_path(request.filePath, request.fileUrl)
 
         # Check if model is loaded
         if efficientnet_model is None:
@@ -316,12 +369,12 @@ async def detect_deepfake(request: DetectRequest):
             model_output = prob_real
             heatmap_confidence = None
         else:
-            ext = os.path.splitext(request.filePath)[1].lower()
+            ext = os.path.splitext(resolved_path)[1].lower()
             is_video = ext in ['.mp4', '.avi', '.mov', '.mkv']
             
             if is_video:
                 report_progress(request.uploadId, 5) # 5% - Start video process
-                processed_frames = preprocess_video(request.filePath, upload_id=request.uploadId, model_type="efficientnet")
+                processed_frames = preprocess_video(resolved_path, upload_id=request.uploadId, model_type="efficientnet")
                 
                 predictions = []
                 for i, frame in enumerate(processed_frames):
@@ -335,7 +388,7 @@ async def detect_deepfake(request: DetectRequest):
                 
                 heatmap_confidence = None
             else:
-                processed_img = preprocess_image(request.filePath, model_type="efficientnet")
+                processed_img = preprocess_image(resolved_path, model_type="efficientnet")
                 model_output = float(efficientnet_model.predict(processed_img, verbose=0)[0][0])
                 heatmap_confidence = None
             
@@ -357,7 +410,7 @@ async def detect_deepfake(request: DetectRequest):
         
         # Debug logging
         logger.info(
-            f"Detection: file={os.path.basename(request.filePath)} | "
+            f"Detection: file={os.path.basename(resolved_path)} | "
             f"model_output={model_output:.4f} | "
             f"prediction={prediction} | "
             f"confidence={confidence:.4f} | "
@@ -385,14 +438,18 @@ async def detect_deepfake(request: DetectRequest):
             prob_real=0.0,
             prob_fake=0.0
         )
+    finally:
+        cleanup_temp_file(resolved_path, is_temp)
 
 @app.post("/compare", response_model=CompareResponse)
 async def compare_models_endpoint(request: CompareRequest):
+    resolved_path = None
+    is_temp = False
     try:
-        if not os.path.exists(request.filePath):
-            raise FileNotFoundError(f"File not found: {request.filePath}")
+        # Resolve file: try local path first, fall back to downloading from URL
+        resolved_path, is_temp = resolve_file_path(request.filePath, request.fileUrl)
             
-        ext = os.path.splitext(request.filePath)[1].lower()
+        ext = os.path.splitext(resolved_path)[1].lower()
         is_video = ext in ['.mp4', '.avi', '.mov', '.mkv']
         
         # Check if models are loaded
@@ -410,7 +467,7 @@ async def compare_models_endpoint(request: CompareRequest):
         
         if is_video:
             report_progress(request.uploadId, 10)
-            processed_frames_eff = preprocess_video(request.filePath, upload_id=request.uploadId, model_type="efficientnet")
+            processed_frames_eff = preprocess_video(resolved_path, upload_id=request.uploadId, model_type="efficientnet")
             preds_eff = []
             for i, frame in enumerate(processed_frames_eff):
                 preds_eff.append(float(efficientnet_model.predict(frame, verbose=0)[0][0]))
@@ -418,7 +475,7 @@ async def compare_models_endpoint(request: CompareRequest):
                     report_progress(request.uploadId, 10 + int((i / len(processed_frames_eff)) * 40))
             output_eff = sum(preds_eff) / len(preds_eff) if preds_eff else 0.5
         else:
-            processed_img_eff = preprocess_image(request.filePath, model_type="efficientnet")
+            processed_img_eff = preprocess_image(resolved_path, model_type="efficientnet")
             output_eff = float(efficientnet_model.predict(processed_img_eff, verbose=0)[0][0])
             
         latency_eff = int((time.time() - start_eff) * 1000)
@@ -426,7 +483,7 @@ async def compare_models_endpoint(request: CompareRequest):
         # 2. Run MesoNet Prediction & Latency
         start_meso = time.time()
         if is_video:
-            processed_frames_meso = preprocess_video(request.filePath, upload_id=request.uploadId, model_type="mesonet")
+            processed_frames_meso = preprocess_video(resolved_path, upload_id=request.uploadId, model_type="mesonet")
             preds_meso = []
             for i, frame in enumerate(processed_frames_meso):
                 preds_meso.append(float(mesonet_model.predict(frame, verbose=0)[0][0]))
@@ -434,7 +491,7 @@ async def compare_models_endpoint(request: CompareRequest):
                     report_progress(request.uploadId, 50 + int((i / len(processed_frames_meso)) * 40))
             output_meso = sum(preds_meso) / len(preds_meso) if preds_meso else 0.5
         else:
-            processed_img_meso = preprocess_image(request.filePath, model_type="mesonet")
+            processed_img_meso = preprocess_image(resolved_path, model_type="mesonet")
             output_meso = float(mesonet_model.predict(processed_img_meso, verbose=0)[0][0])
             
         latency_meso = int((time.time() - start_meso) * 1000)
@@ -483,6 +540,8 @@ async def compare_models_endpoint(request: CompareRequest):
             efficientnet={"prediction": "error", "confidence": 0.0, "latency": 0, "heatmap": "", "prob_real": 0.0, "prob_fake": 0.0},
             mesonet={"prediction": "error", "confidence": 0.0, "latency": 0, "heatmap": "", "prob_real": 0.0, "prob_fake": 0.0}
         )
+    finally:
+        cleanup_temp_file(resolved_path, is_temp)
 
 @app.get("/health")
 async def health_check():
