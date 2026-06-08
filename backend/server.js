@@ -25,12 +25,16 @@ const wss = new WebSocket.Server({ server });
 const fs = require('fs');
 const uploadDir = path.join(__dirname, 'uploads');
 const reportDir = path.join(__dirname, 'reports');
+const logsDir = path.join(__dirname, 'logs');
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 if (!fs.existsSync(reportDir)) {
   fs.mkdirSync(reportDir, { recursive: true });
+}
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
 }
 
 // Configure Winston logger
@@ -49,6 +53,10 @@ const logger = winston.createLogger({
 });
 
 if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple(),
+  }));
+} else {
   logger.add(new winston.transports.Console({
     format: winston.format.simple(),
   }));
